@@ -1,27 +1,26 @@
-import openai
+from openai import OpenAI
 
 def summarize_with_gpt(ticker, hist, headlines, api_key):
-    openai.api_key = api_key
-    prices = hist['Close'].tolist()
-    price_str = f"Last 7-day closing prices for {ticker}: {prices}"
-
+    client = OpenAI(api_key=api_key)
+    
     prompt = f"""
-Act as a financial analyst.
-Given this stock price trend and recent news headlines:
+    You are a market analyst. Summarize the stock activity for {ticker} using the data and headlines below.
 
-{price_str}
+    Historical Stock Data:
+    {hist}
 
-News Headlines:
-{headlines}
+    News Headlines:
+    {headlines}
 
-Summarize the market sentiment and potential risks or outlook.
-"""
+    Provide a short but informative analysis.
+    """
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a helpful stock market analyst."},
             {"role": "user", "content": prompt}
         ]
     )
-    return response["choices"][0]["message"]["content"]
+
+    return response.choices[0].message.content
