@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 
 def summarize_with_gpt(ticker, hist, headlines, api_key):
     openai.api_key = api_key
@@ -17,11 +17,13 @@ News Headlines:
 Summarize the market sentiment and potential risks or outlook.
 """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a helpful stock market analyst."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+   client = OpenAI(api_key=OPENAI_API_KEY)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "..."},
+        {"role": "user", "content": "..."}
+    ]
+)
     return response["choices"][0]["message"]["content"]
