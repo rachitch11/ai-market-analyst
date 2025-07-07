@@ -4,31 +4,52 @@ import requests
 import os
 from dotenv import load_dotenv
 from utils.summarizer import summarize_with_gpt
+from datetime import datetime, timedelta
 
+# Load API keys
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
+# Streamlit App UI
 st.title("📈 AI Market Analyst")
-ticker = st.text_input("Enter stock symbol (e.g., AAPL, TSLA, GOOGL)")
+ticker = st.text_input("Enter Stock Symbol (e.g., AAPL)", "AAPL")
 
-if st.button("Analyze"):
-    if ticker:
-        stock = yf.Ticker(ticker)
-        hist = stock.history(period="7d")
-        st.subheader("Stock Price - Last 7 Days")
-        st.line_chart(hist["Close"])
+# ✅ Date range dropdown
+date_range_option = st.selectbox(
+    "Select Date Range:",
+    ["Last 7 Days", "Last 1 Month", "Last 3 Months", "Last 6 Months", "Last 1 Year", "Last 5 Years"]
+)
 
-        st.subheader("📰 Latest News")
-        url = f"https://serpapi.com/search.json?q={ticker}+stock+news&api_key={SERPAPI_KEY}&tbm=nws"
-        response = requests.get(url)
-        news_results = response.json().get("news_results", [])
-        headlines = [article['title'] for article in news_results[:5]]
-        headlines_text = "\n".join(headlines)
-        st.write(headlines)
+# ✅ Convert range option to start & end date
+today = datetime.today()
+if date_range_option == "Last 7 Days":
+    start_date = today - timedelta(days=7)
+elif date_range_option == "Last 1 Month":
+    start_date = today - timedelta(days=30)
+elif date_range_option == "Last 3 Months":
+    start_date = today - timedelta(days=90)
+elif date_range_option == "Last 6 Months":
+    start_date = today - timedelta(days=180)
+elif date_range_option == "Last 1 Year":
+    start_date = today - timedelta(days=365)
+elif date_range_option == "Last 5 Years":
+    start_date = today - timedelta(days=1825)
 
-        st.subheader("🧠 AI Insight")
-        stock_summary = summarize_with_gpt(ticker, hist, headlines_text, OPENAI_API_KEY)
-        st.write(stock_summary)
-    else:
-        st.warning("Enter a valid stock symbol.")
+end_date = today
+
+# ✅ Fetch historical stock data
+data = yf.download(ticker, start=start_date, end=end_date)
+
+# ✅ Show chart
+st.line_chart(data["Close"], use_container_width=True)
+
+# Prepare dummy headlines for testing (replace with your logic)
+headlines_text = "Apple launched new AI chips. Microsoft Azure expands in Asia."
+
+# Call summarizer
+if not data.empty:
+    summary = summarize_with_gpt(ticker, data, headlines_text, OPENAI_API_KEY)
+    st.subheader("📊 Market Insight")
+    st.write(summary)
+else:
+    st.warning("No stock data found for the selected date range.")
