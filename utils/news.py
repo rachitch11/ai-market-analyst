@@ -16,4 +16,3 @@ def get_stock_news(query, num_results=5):
         return headlines
     except Exception as e:
         return f"Error fetching news: {str(e)}"
-
