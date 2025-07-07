@@ -1,8 +1,12 @@
 from openai import OpenAI
 
 def summarize_with_gpt(ticker, hist, headlines, api_key):
+    # ✅ Check for valid price data
+    if not hasattr(hist, 'columns') or 'Close' not in hist.columns:
+        return f"❌ Error: No 'Close' price data available for {ticker}."
+
     prices = hist['Close'].tolist()
-    price_str = f"Last 7-day closing prices for {ticker}: {prices}"
+    price_str = f"Closing prices for {ticker}: {prices}"
 
     prompt = f"""
 Act as a financial analyst.
@@ -21,7 +25,7 @@ Summarize the market sentiment and potential risks or outlook.
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "You are a financial analysis assistant."},
+            {"role": "system", "content": "You are a financial analyst."},
             {"role": "user", "content": prompt}
         ]
     )
