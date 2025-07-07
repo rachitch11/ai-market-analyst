@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
 from utils.summarizer import summarize_with_gpt
-from utils.news import fetch_top_news  # 🔄 Updated for NewsAPI
+from utils.news import fetch_top_news, get_symbol_from_name
 
 # Load API keys
 load_dotenv()
@@ -15,13 +15,25 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 st.set_page_config(page_title="AI Market Analyst", layout="centered")
 st.title("📈 AI Market Analyst")
 
-# ✅ Default ticker
-default_ticker = "AAPL"
+# 🔄 Layout using columns for side-by-side inputs
+col1, col2 = st.columns([2, 2])
 
-# ✅ Input form
+with col1:
+    search_company = st.text_input("🔍 Search Company Name (e.g., Apple)", key="company_search")
+
+with col2:
+    if search_company:
+        found_symbol = get_symbol_from_name(search_company)
+        if found_symbol:
+            st.success(f"✅ Symbol: `{found_symbol}`")
+        else:
+            st.error("❌ Symbol not found")
+
+# 📥 Main Form (as-is)
+default_ticker = "AAPL"
 with st.form("ticker_form"):
     ticker = st.text_input(
-        "Enter Stock Symbol (e.g., AAPL, MSFT, TSLA, GOOGL, NVDA, META, AMZN, JPM, NFLX, BRK-B)",
+        "Enter Stock Symbol (e.g., AAPL, TSLA, MSFT):",
         value=default_ticker
     )
 
@@ -32,12 +44,11 @@ with st.form("ticker_form"):
 
     submitted = st.form_submit_button("🔍 Analyze")
 
-# ✅ On form submit
+# 🔍 On Submit
 if submitted:
     if ticker.strip() == "":
         st.warning("⚠️ Please enter a valid stock symbol.")
     else:
-        # ✅ Date range logic
         today = datetime.today()
         if date_range == "Last 7 Days":
             start_date = today - timedelta(days=7)
@@ -55,17 +66,14 @@ if submitted:
         # ✅ Fetch stock data
         data = yf.download(ticker, start=start_date, end=today)
         if data.empty:
-            st.warning("⚠️ No stock data found. Try a valid ticker like AAPL, TSLA, or MSFT.")
+            st.warning("⚠️ No stock data found. Try a valid symbol like AAPL, TSLA.")
         else:
-            # ✅ Fetch News via NewsAPI
-            headlines = fetch_top_news(ticker)  # 🔄 Using NewsAPI
+            headlines = fetch_top_news(ticker)
             headlines_text = "\n".join(headlines)
 
-            # ✅ Price chart
             st.subheader(f"📉 {ticker.upper()} Price Trend")
             st.line_chart(data["Close"], use_container_width=True)
 
-            # ✅ Show news
             st.subheader("📰 Recent News Headlines")
             if headlines:
                 for h in headlines:
@@ -73,9 +81,7 @@ if submitted:
             else:
                 st.write("No recent news found.")
 
-            # ✅ Summarize with GPT
             summary = summarize_with_gpt(ticker, data, headlines_text, OPENAI_API_KEY)
 
-            # ✅ AI Market Insight
             st.subheader("📊 Market Insight")
             st.write(summary)
