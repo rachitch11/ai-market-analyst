@@ -17,7 +17,7 @@ News Headlines:
 Summarize the market sentiment and potential risks or outlook.
 """
 
-   client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 response = client.chat.completions.create(
     model="gpt-4o",
