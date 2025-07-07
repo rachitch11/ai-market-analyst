@@ -40,16 +40,17 @@ end_date = today
 # ✅ Fetch historical stock data
 data = yf.download(ticker, start=start_date, end=end_date)
 
-# ✅ Show chart
-st.line_chart(data["Close"], use_container_width=True)
-
-# Prepare dummy headlines for testing (replace with your logic)
+# ✅ Dummy headlines for testing (replace with real scraping/news logic)
 headlines_text = "Apple launched new AI chips. Microsoft Azure expands in Asia."
 
-# Call summarizer
+# ✅ Safe check before chart and GPT call
 if not data.empty:
+    # Show line chart of closing prices
+    st.line_chart(data["Close"], use_container_width=True)
+
+    # Call GPT summarizer
     summary = summarize_with_gpt(ticker, data, headlines_text, OPENAI_API_KEY)
     st.subheader("📊 Market Insight")
     st.write(summary)
 else:
-    st.warning("No stock data found for the selected date range.")
+    st.warning("⚠️ No stock data found for this ticker and date range.")
