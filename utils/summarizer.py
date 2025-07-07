@@ -1,7 +1,6 @@
 from openai import OpenAI
 
 def summarize_with_gpt(ticker, hist, headlines, api_key):
-    openai.api_key = api_key
     prices = hist['Close'].tolist()
     price_str = f"Last 7-day closing prices for {ticker}: {prices}"
 
@@ -17,13 +16,14 @@ News Headlines:
 Summarize the market sentiment and potential risks or outlook.
 """
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=api_key)
 
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {"role": "system", "content": "..."},
-        {"role": "user", "content": "..."}
-    ]
-)
-    return response["choices"][0]["message"]["content"]
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a financial analysis assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+
+    return response.choices[0].message.content
