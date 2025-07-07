@@ -2,8 +2,10 @@ import streamlit as st
 import yfinance as yf
 import os
 from dotenv import load_dotenv
-from utils.summarizer import summarize_with_gpt
 from datetime import datetime, timedelta
+
+from utils.summarizer import summarize_with_gpt
+from utils.news import get_stock_news  # ✅ import news fetcher
 
 # Load API key from .env
 load_dotenv()
@@ -13,11 +15,19 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 st.set_page_config(page_title="AI Market Analyst", layout="centered")
 st.title("📈 AI Market Analyst")
 
-# ✅ Stock symbol input with examples
+# ✅ Use session state to track ticker and trigger refresh
+default_symbol = "AAPL"
+if "ticker" not in st.session_state:
+    st.session_state["ticker"] = default_symbol
+
 ticker = st.text_input(
     "Enter Stock Symbol (e.g., AAPL, MSFT, GOOGL, AMZN, TSLA, META, JPM, NVDA, NFLX, BRK-B)",
-    value="AAPL"
+    st.session_state["ticker"]
 )
+
+if ticker != st.session_state["ticker"]:
+    st.session_state["ticker"] = ticker
+    st.experimental_rerun()  # 🔁 force refresh to update headlines & summary
 
 # ✅ Date range selector
 date_range_option = st.selectbox(
@@ -25,7 +35,7 @@ date_range_option = st.selectbox(
     ["Last 7 Days", "Last 1 Month", "Last 3 Months", "Last 6 Months", "Last 1 Year", "Last 5 Years"]
 )
 
-# ✅ Convert range to start date
+# ✅ Convert to date range
 today = datetime.today()
 if date_range_option == "Last 7 Days":
     start_date = today - timedelta(days=7)
@@ -43,33 +53,30 @@ elif date_range_option == "Last 5 Years":
 # ✅ Download stock price data
 data = yf.download(ticker, start=start_date, end=today)
 
-# ✅ Dummy headlines (replace with real source later)
-headlines_text = (
-    "Apple launched new AI chips. "
-    "Microsoft Azure expands in Asia. "
-    "TSMC reports record chip demand. "
-    "Interest rate hikes affect tech stocks."
-)
+# ✅ Fetch dynamic news headlines based on ticker
+headlines_text = get_stock_news(ticker)
 
 # ✅ Show result only if data is valid
 if not data.empty:
-    # 📈 Show price trend chart
+    # 📈 Show stock chart
     st.subheader(f"📉 {ticker.upper()} Price Trend")
     st.line_chart(data["Close"], use_container_width=True)
 
     # 📰 Show headlines
     st.subheader("📰 Recent News Headlines")
-    headlines = headlines_text.split(". ")
-    for h in headlines:
-        if h.strip():
-            st.markdown(f"- {h.strip()}")
+    if isinstance(headlines_text, str):
+        headlines = headlines_text.split(". ")
+        for h in headlines:
+            if h.strip():
+                st.markdown(f"- {h.strip()}")
+    else:
+        st.write("No headlines available.")
 
-    # 🤖 Get GPT summary
+    # 🤖 GPT Summary
     summary = summarize_with_gpt(ticker, data, headlines_text, OPENAI_API_KEY)
 
-    # 🧠 Show market insight
+    # 📊 Show Market Insight
     st.subheader("📊 Market Insight")
     st.write(summary)
-
 else:
-    st.warning("⚠️ No stock data found for the selected ticker and date range. Please try a valid symbol like AAPL, MSFT, GOOGL.")
+    st.warning("⚠️ No stock data found for the selected ticker and date range.")
