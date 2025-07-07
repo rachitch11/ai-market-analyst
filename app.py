@@ -33,7 +33,7 @@ with col2:
 default_ticker = "AAPL"
 with st.form("ticker_form"):
     ticker = st.text_input(
-        "Enter Stock Symbol (e.g., AAPL, TSLA, MSFT):",
+        "Enter Stock Symbol (e.g., AAPL, TSLA, MSFT, GOOGL, NVDA, META, AMZN, NFLX, BRK-B, JPM, BAC, DIS):",
         value=default_ticker
     )
 
