@@ -2,13 +2,13 @@ import pandas as pd
 from openai import OpenAI
 
 def summarize_with_gpt(ticker, hist, headlines, api_key):
-    # ✅ Fix for multi-level or flat column DataFrame
+    # ✅ Extract closing prices safely
     try:
         if isinstance(hist.columns, pd.MultiIndex):
             if ('Close', ticker) in hist.columns:
                 close_prices = hist[('Close', ticker)].tolist()
             else:
-                return f"❌ Error: No 'Close' price data found for {ticker}."
+                return f"❌ Error: No 'Close' data found for {ticker}."
         elif 'Close' in hist.columns:
             close_prices = hist['Close'].tolist()
         else:
@@ -16,31 +16,32 @@ def summarize_with_gpt(ticker, hist, headlines, api_key):
     except Exception as e:
         return f"❌ Exception while processing price data: {str(e)}"
 
-    price_str = f"Closing prices for {ticker}: {close_prices}"
+    # ✅ Build a readable price string
+    price_str = f"Recent closing prices for {ticker}: {close_prices[-7:] if len(close_prices) > 7 else close_prices}"
 
-    # ✅ Structured prompt with clearly defined analysis blocks
+    # ✅ Structured prompt for GPT
     prompt = f"""
 You are a financial analyst.
 
-Using the historical stock prices and recent news headlines below, write a structured report with the following sections:
+Using the stock prices and recent news headlines below, write a structured report with the following sections:
 
-1. **Stock Price Trend Overview** — Describe the trend (upward, downward, volatile, stable), key levels, and changes over time.
+1. **Stock Price Trend Overview** — Describe if the trend is upward, downward, stable, or volatile. Mention recent highs/lows and any significant changes.
 
-2. **Market Sentiment Analysis** — Interpret the sentiment (positive, neutral, negative) and what drives it.
+2. **Market Sentiment Analysis** — Evaluate the sentiment (positive, negative, neutral) based on price trend and headlines.
 
-3. **Potential Risks** — Highlight any concerns, uncertainties, or threats based on news or price data.
+3. **Potential Risks** — Identify any risks or red flags from news or stock movement.
 
-4. **Forward-Looking Outlook** — Predict short-term or medium-term expectations and what to watch for.
+4. **Forward-Looking Outlook** — Provide a short-term or medium-term outlook and key factors to watch.
 
 ---
 
-Stock Prices for {ticker}:
 {price_str}
 
-Recent Headlines:
+Recent News Headlines:
 {headlines}
 """
 
+    # ✅ Use OpenAI client
     client = OpenAI(api_key=api_key)
 
     response = client.chat.completions.create(
