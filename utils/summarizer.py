@@ -1,12 +1,19 @@
 from openai import OpenAI
+import pandas as pd
 
 def summarize_with_gpt(ticker, hist, headlines, api_key):
-    # ✅ Check for valid price data
-    if not hasattr(hist, 'columns') or 'Close' not in hist.columns:
-        return f"❌ Error: No 'Close' price data available for {ticker}."
+    # ✅ Fix for multi-level columns from yfinance
+    if isinstance(hist.columns, pd.MultiIndex):
+        if ('Close', ticker) in hist.columns:
+            close_prices = hist[('Close', ticker)].tolist()
+        else:
+            return f"❌ Error: No 'Close' price found for {ticker} in multi-index DataFrame."
+    elif 'Close' in hist.columns:
+        close_prices = hist['Close'].tolist()
+    else:
+        return f"❌ Error: 'Close' column not found in data."
 
-    prices = hist['Close'].tolist()
-    price_str = f"Closing prices for {ticker}: {prices}"
+    price_str = f"Closing prices for {ticker}: {close_prices}"
 
     prompt = f"""
 Act as a financial analyst.
