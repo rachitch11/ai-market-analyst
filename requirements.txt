@@ -8,3 +8,4 @@ newsapi-python
 pandas
 gspread
 oauth2client
+xlsxwriter
