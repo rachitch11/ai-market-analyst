@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
-from utils.auth import login, signup  # ✅ New import for authentication
+from utils.auth import login, signup, increment_usage, get_user_sheet  # ✅ Updated
 
 # Load API keys
 load_dotenv()
@@ -45,16 +45,36 @@ def login_signup_ui():
             else:
                 st.error(msg)
 
+# ------------------ USAGE FETCH ------------------ #
+def get_user_usage(email):
+    sheet = get_user_sheet()
+    users = sheet.get_all_records()
+    for user in users:
+        if user['email'] == email:
+            used = int(user['usage'])
+            maxed = int(user['max_usage'])
+            remaining = max(0, maxed - used)
+            return used, maxed, remaining
+    return 0, 3, 3
+
 # ------------------ MAIN APP ------------------ #
 if not st.session_state.logged_in:
     login_signup_ui()
 else:
+    used, maxed, remaining = get_user_usage(st.session_state.email)
+
+    # Sidebar
     st.sidebar.success(f"Logged in as {st.session_state.email}")
+    st.sidebar.markdown(f"📊 Usage: {used} / {maxed}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
+    # Dashboard Header
     st.title("📈 AI Market Analyst")
+    st.markdown(f"**👤 User:** `{st.session_state.email}`")
+    st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
+    st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
 
     # 🔄 Layout using columns for side-by-side inputs
     col1, col2 = st.columns([2, 2])
@@ -87,7 +107,9 @@ else:
 
     # 🔍 On Submit
     if submitted:
-        if ticker.strip() == "":
+        if used >= maxed:
+            st.error("🚫 Usage limit reached. Please email rachit.jb77@gmail.com for full access.")
+        elif ticker.strip() == "":
             st.warning("⚠️ Please enter a valid stock symbol.")
         else:
             today = datetime.today()
@@ -126,3 +148,7 @@ else:
 
                 st.subheader("📊 Market Insight")
                 st.write(summary)
+
+                # ✅ Log usage
+                increment_usage(st.session_state.email)
+                st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
