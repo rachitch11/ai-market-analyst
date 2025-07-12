@@ -6,3 +6,5 @@ python-dotenv
 serpapi
 newsapi-python
 pandas
+gspread
+oauth2client
