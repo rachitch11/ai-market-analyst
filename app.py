@@ -16,6 +16,8 @@ st.set_page_config(page_title="AI Market Analyst", layout="centered")
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+if 'portfolio' not in st.session_state:
+    st.session_state.portfolio = []
 
 # ------------------ AUTH UI ------------------ #
 def login_signup_ui():
@@ -88,10 +90,44 @@ else:
     st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
     st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
 
-    # 🔄 Layout for search
+    # Portfolio Section
+    st.subheader("💼 Your Portfolio")
+    portfolio = st.session_state.portfolio
+
+    if portfolio:
+        for stock in portfolio:
+            try:
+                data = yf.Ticker(stock).history(period="5d")
+                if not data.empty:
+                    st.markdown(f"**📊 {stock} (Last 5 Days)**")
+                    st.line_chart(data["Close"], use_container_width=True)
+                else:
+                    st.warning(f"⚠️ No data for {stock}")
+            except Exception as e:
+                st.warning(f"⚠️ Error loading data for {stock}: {e}")
+    else:
+        st.info("Your portfolio is empty.")
+
+    with st.form("portfolio_form"):
+        new_stock = st.text_input("➕ Add a Stock to Portfolio (e.g., AAPL, TSLA)")
+        add_submit = st.form_submit_button("Add to Portfolio")
+
+        if add_submit:
+            symbol = new_stock.strip().upper()
+            if symbol:
+                if symbol in portfolio:
+                    st.warning(f"⚠️ `{symbol}` is already in your portfolio.")
+                elif len(portfolio) >= 5:
+                    st.error("🚫 You can only add up to 5 stocks in your portfolio.")
+                else:
+                    st.session_state.portfolio.append(symbol)
+                    st.success(f"✅ Added `{symbol}` to portfolio.")
+
+    # 🔍 Stock Analyzer
+    st.subheader("🔍 Stock Analyzer")
     col1, col2 = st.columns([2, 2])
     with col1:
-        search_company = st.text_input("🔍 Search Company Name (e.g., Apple)", key="company_search")
+        search_company = st.text_input("Search Company Name (e.g., Apple)", key="company_search")
     with col2:
         if search_company:
             found_symbol = get_symbol_from_name(search_company)
@@ -100,10 +136,8 @@ else:
             else:
                 st.error("❌ Symbol not found")
 
-    # 📥 Form
-    default_ticker = "AAPL"
     with st.form("ticker_form"):
-        ticker = st.text_input("Enter Stock Symbol:", value=default_ticker)
+        ticker = st.text_input("Enter Stock Symbol:", value="AAPL")
         date_range = st.selectbox("Select Date Range:", [
             "Last 7 Days", "Last 1 Month", "Last 3 Months",
             "Last 6 Months", "Last 1 Year", "Last 5 Years"
