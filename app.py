@@ -1,4 +1,71 @@
-# ... [IMPORTS remain unchanged]
+import streamlit as st
+import yfinance as yf
+import os
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+
+from utils.summarizer import summarize_with_gpt
+from utils.news import fetch_top_news, get_symbol_from_name
+from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info
+
+# Load API key
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+st.set_page_config(page_title="AI Market Analyst", layout="centered")
+
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'portfolio' not in st.session_state:
+    st.session_state.portfolio = []
+
+# ------------------ AUTH UI ------------------ #
+def login_signup_ui():
+    st.title("🔐 Login / Sign Up to Access AI Market Analyst")
+    menu = st.radio("Select", ["Login", "Sign Up"])
+
+    if menu == "Login":
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            success, msg = login(email, password)
+            if success:
+                st.success(msg)
+                st.session_state.logged_in = True
+                st.session_state.email = email
+                st.rerun()
+            else:
+                st.error(msg)
+    else:
+        name = st.text_input("Full Name")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        age = st.number_input("Age", min_value=1, max_value=100)
+        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+        if st.button("Sign Up"):
+            if password != confirm_password:
+                st.error("Passwords do not match.")
+            else:
+                success, msg = signup(name, email, password, age, gender)
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
+
+# ------------------ USAGE FETCH ------------------ #
+def get_user_usage(email):
+    sheet = get_user_sheet()
+    users = sheet.get_all_records()
+    for user in users:
+        if user['email'].strip().lower() == email.strip().lower():
+            used = int(user['usage'])
+            maxed = user['max_usage']
+            if str(maxed).lower() == "unlimited":
+                return used, "unlimited", "unlimited"
+            remaining = max(0, int(maxed) - used)
+            return used, int(maxed), remaining
+    return 0, 3, 3
 
 # ------------------ MAIN APP ------------------ #
 if not st.session_state.logged_in:
@@ -84,7 +151,7 @@ else:
                 if str(maxed).lower() != "unlimited":
                     st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
 
-    # ------------------ 💼 Portfolio Section (Now at bottom) ------------------ #
+    # ------------------ 📁 My Portfolio Section (BOTTOM) ------------------ #
     st.subheader("📁 My Portfolio")
     portfolio = st.session_state.portfolio
 
