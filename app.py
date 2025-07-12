@@ -12,8 +12,10 @@ from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Set page config
 st.set_page_config(page_title="AI Market Analyst", layout="centered")
 
+# Session state init
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -25,7 +27,6 @@ def login_signup_ui():
     if menu == "Login":
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
-
         if st.button("Login"):
             success, msg = login(email, password)
             if success:
@@ -40,16 +41,13 @@ def login_signup_ui():
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
         confirm_password = st.text_input("Confirm Password", type="password")
-        age = st.text_input("Age")
+        age = st.number_input("Age", min_value=1, max_value=100)
         gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-
         if st.button("Sign Up"):
             if password != confirm_password:
                 st.error("Passwords do not match.")
-            elif not name or not email or not password or not age or not gender:
-                st.error("Please fill in all fields.")
             else:
-                success, msg = signup(email, password, name, age, gender)
+                success, msg = signup(name, email, password, age, gender)
                 if success:
                     st.success(msg)
                 else:
@@ -72,21 +70,25 @@ if not st.session_state.logged_in:
     login_signup_ui()
 else:
     used, maxed, remaining = get_user_usage(st.session_state.email)
-    name, age, gender = get_user_info(st.session_state.email)
+    user = get_user_info(st.session_state.email)
 
+    # Sidebar
     st.sidebar.success(f"Logged in as {st.session_state.email}")
     st.sidebar.markdown(f"📊 Usage: {used} / {maxed}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
-    # Dashboard
+    # Dashboard Header
     st.title("📈 AI Market Analyst")
-    st.markdown(f"**👤 Name:** `{name}` | **Age:** `{age}` | **Gender:** `{gender}`")
-    st.markdown(f"**📧 Email:** `{st.session_state.email}`")
+    st.markdown(f"**👤 Name:** `{user['name']}`")
+    st.markdown(f"**📧 Email:** `{user['email']}`")
+    st.markdown(f"**🎂 Age:** `{user['age']}`")
+    st.markdown(f"**🚻 Gender:** `{user['gender']}`")
     st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
     st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
 
+    # 🔄 Layout using columns for side-by-side inputs
     col1, col2 = st.columns([2, 2])
     with col1:
         search_company = st.text_input("🔍 Search Company Name (e.g., Apple)", key="company_search")
@@ -98,13 +100,11 @@ else:
             else:
                 st.error("❌ Symbol not found")
 
+    # 📥 Main Form
     default_ticker = "AAPL"
     with st.form("ticker_form"):
         ticker = st.text_input("Enter Stock Symbol:", value=default_ticker)
-        date_range = st.selectbox("Select Date Range:", [
-            "Last 7 Days", "Last 1 Month", "Last 3 Months",
-            "Last 6 Months", "Last 1 Year", "Last 5 Years"
-        ])
+        date_range = st.selectbox("Select Date Range:", ["Last 7 Days", "Last 1 Month", "Last 3 Months", "Last 6 Months", "Last 1 Year", "Last 5 Years"])
         submitted = st.form_submit_button("🔍 Analyze")
 
     if submitted:
@@ -133,7 +133,6 @@ else:
             else:
                 headlines = fetch_top_news(ticker)
                 headlines_text = "\n".join(headlines)
-
                 st.subheader(f"📉 {ticker.upper()} Price Trend")
                 st.line_chart(data["Close"], use_container_width=True)
 
