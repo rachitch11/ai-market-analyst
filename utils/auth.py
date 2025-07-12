@@ -15,28 +15,25 @@ def get_user_sheet():
     sheet = client.open("user_auth_db").worksheet("users")
     return sheet
 
-def signup(email, password):
+def signup(email, password, name, age, gender):
     sheet = get_user_sheet()
     users = sheet.get_all_records()
     
     if any(u['email'] == email for u in users):
-        return False, "Email already registered."
+        return False, "🚫 Email already registered."
     
-    # Default usage is 0, max_usage is 3
-    sheet.append_row([email, password, 0, 3])
-    return True, "Signup successful. Please login."
+    # Append row with: name, email, password, age, gender, usage=0, max_usage=3
+    sheet.append_row([name, email, password, age, gender, 0, 3])
+    return True, "✅ Signup successful. Please login."
 
 def login(email, password):
     sheet = get_user_sheet()
     users = sheet.get_all_records()
     
-    for i, user in enumerate(users):
+    for user in users:
         if user['email'] == email and user['password'] == password:
-            if int(user['usage']) >= int(user['max_usage']):
-                return False, "Usage limit exceeded. Contact admin."
-            else:
-                return True, "Login successful."
-    return False, "Invalid credentials."
+            return True, "✅ Login successful."
+    return False, "❌ Invalid credentials."
 
 def increment_usage(email):
     sheet = get_user_sheet()
@@ -45,6 +42,14 @@ def increment_usage(email):
     for i, user in enumerate(users):
         if user['email'] == email:
             new_usage = int(user['usage']) + 1
-            row = i + 2  # +2 because Google Sheets is 1-indexed and row 1 is the header
-            sheet.update_cell(row, 3, new_usage)  # 3 = usage column
+            row = i + 2  # +2 because 1-indexed and row 1 is header
+            sheet.update_cell(row, 6, new_usage)  # 6 = usage column
             return
+
+def get_user_profile(email):
+    sheet = get_user_sheet()
+    users = sheet.get_all_records()
+    for user in users:
+        if user['email'] == email:
+            return user
+    return None
