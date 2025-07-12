@@ -22,7 +22,7 @@ def signup(name, email, password, age, gender):
     if any(u['email'].strip().lower() == email.strip().lower() for u in users):
         return False, "Email already registered."
 
-    # Add user: name, email, password (as string), age, gender, usage, max_usage
+    # Add user: name, email, password, age, gender, usage, max_usage
     sheet.append_row([name, email.strip().lower(), str(password).strip(), age, gender, 0, 3])
     return True, "Signup successful. Please login."
 
@@ -33,28 +33,42 @@ def login(email, password):
     for user in users:
         sheet_email = user['email'].strip().lower()
         sheet_password = str(user['password']).strip()
+        entered_email = email.strip().lower()
+        entered_password = str(password).strip()
 
-        if sheet_email == email.strip().lower() and sheet_password == str(password).strip():
-            if int(user['usage']) >= int(user['max_usage']):
+        if sheet_email == entered_email and sheet_password == entered_password:
+            max_usage = str(user.get("max_usage", "3")).strip().lower()
+            usage = int(user.get("usage", 0))
+
+            # Handle unlimited
+            if max_usage == "unlimited":
+                return True, "Login successful."
+            elif usage >= int(max_usage):
                 return False, "Usage limit exceeded. Contact admin."
             else:
                 return True, "Login successful."
-    
+
     return False, "Invalid credentials."
 
 def increment_usage(email):
     sheet = get_user_sheet()
     users = sheet.get_all_records()
+
     for i, user in enumerate(users):
         if user['email'].strip().lower() == email.strip().lower():
+            max_usage = str(user.get("max_usage", "3")).strip().lower()
+            if max_usage == "unlimited":
+                return  # Don't increment if unlimited
+
             new_usage = int(user['usage']) + 1
-            row = i + 2  # +2 because header is row 1
+            row = i + 2  # Row index +2 (headers in row 1)
             sheet.update_cell(row, 6, new_usage)  # column 6 = usage
             return
 
 def get_user_info(email):
     sheet = get_user_sheet()
     users = sheet.get_all_records()
+
     for user in users:
         if user['email'].strip().lower() == email.strip().lower():
             return {
