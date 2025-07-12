@@ -6,16 +6,14 @@ from datetime import datetime, timedelta
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
-from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info  # ✅ Updated
+from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info
 
 # Load API keys
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Set page config
 st.set_page_config(page_title="AI Market Analyst", layout="centered")
 
-# Session state init
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -27,6 +25,7 @@ def login_signup_ui():
     if menu == "Login":
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
+
         if st.button("Login"):
             success, msg = login(email, password)
             if success:
@@ -38,16 +37,19 @@ def login_signup_ui():
                 st.error(msg)
     else:
         name = st.text_input("Full Name")
-        age = st.text_input("Age")
-        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
-        confirm = st.text_input("Confirm Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        age = st.text_input("Age")
+        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+
         if st.button("Sign Up"):
-            if password != confirm:
-                st.error("❌ Passwords do not match.")
+            if password != confirm_password:
+                st.error("Passwords do not match.")
+            elif not name or not email or not password or not age or not gender:
+                st.error("Please fill in all fields.")
             else:
-                success, msg = signup(name, email, password, age, gender)
+                success, msg = signup(email, password, name, age, gender)
                 if success:
                     st.success(msg)
                 else:
@@ -70,29 +72,24 @@ if not st.session_state.logged_in:
     login_signup_ui()
 else:
     used, maxed, remaining = get_user_usage(st.session_state.email)
-    user_info = get_user_info(st.session_state.email)
+    name, age, gender = get_user_info(st.session_state.email)
 
-    # Sidebar
     st.sidebar.success(f"Logged in as {st.session_state.email}")
     st.sidebar.markdown(f"📊 Usage: {used} / {maxed}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
-    # Dashboard Header
+    # Dashboard
     st.title("📈 AI Market Analyst")
-    st.markdown(f"**👤 User:** `{user_info['name']}`")
+    st.markdown(f"**👤 Name:** `{name}` | **Age:** `{age}` | **Gender:** `{gender}`")
     st.markdown(f"**📧 Email:** `{st.session_state.email}`")
-    st.markdown(f"**🧑 Age/Gender:** `{user_info['age']} / {user_info['gender']}`")
     st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
     st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
 
-    # 🔄 Layout using columns for side-by-side inputs
     col1, col2 = st.columns([2, 2])
-
     with col1:
         search_company = st.text_input("🔍 Search Company Name (e.g., Apple)", key="company_search")
-
     with col2:
         if search_company:
             found_symbol = get_symbol_from_name(search_company)
@@ -101,22 +98,15 @@ else:
             else:
                 st.error("❌ Symbol not found")
 
-    # 📥 Main Form (as-is)
     default_ticker = "AAPL"
     with st.form("ticker_form"):
-        ticker = st.text_input(
-            "Enter Stock Symbol (e.g., AAPL, TSLA, MSFT, GOOGL, NVDA, META, AMZN, NFLX, BRK-B, JPM, BAC, DIS):",
-            value=default_ticker
-        )
-
-        date_range = st.selectbox(
-            "Select Date Range:",
-            ["Last 7 Days", "Last 1 Month", "Last 3 Months", "Last 6 Months", "Last 1 Year", "Last 5 Years"]
-        )
-
+        ticker = st.text_input("Enter Stock Symbol:", value=default_ticker)
+        date_range = st.selectbox("Select Date Range:", [
+            "Last 7 Days", "Last 1 Month", "Last 3 Months",
+            "Last 6 Months", "Last 1 Year", "Last 5 Years"
+        ])
         submitted = st.form_submit_button("🔍 Analyze")
 
-    # 🔍 On Submit
     if submitted:
         if used >= maxed:
             st.error("🚫 Usage limit reached. Please email rachit.jb77@gmail.com for full access.")
@@ -137,7 +127,6 @@ else:
             elif date_range == "Last 5 Years":
                 start_date = today - timedelta(days=1825)
 
-            # ✅ Fetch stock data
             data = yf.download(ticker, start=start_date, end=today)
             if data.empty:
                 st.warning("⚠️ No stock data found. Try a valid symbol like AAPL, TSLA.")
@@ -156,10 +145,8 @@ else:
                     st.write("No recent news found.")
 
                 summary = summarize_with_gpt(ticker, data, headlines_text, OPENAI_API_KEY)
-
                 st.subheader("📊 Market Insight")
                 st.write(summary)
 
-                # ✅ Log usage
                 increment_usage(st.session_state.email)
                 st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
