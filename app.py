@@ -1,71 +1,4 @@
-import streamlit as st
-import yfinance as yf
-import os
-from dotenv import load_dotenv
-from datetime import datetime, timedelta
-
-from utils.summarizer import summarize_with_gpt
-from utils.news import fetch_top_news, get_symbol_from_name
-from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info
-
-# Load API key
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-st.set_page_config(page_title="AI Market Analyst", layout="centered")
-
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'portfolio' not in st.session_state:
-    st.session_state.portfolio = []
-
-# ------------------ AUTH UI ------------------ #
-def login_signup_ui():
-    st.title("🔐 Login / Sign Up to Access AI Market Analyst")
-    menu = st.radio("Select", ["Login", "Sign Up"])
-
-    if menu == "Login":
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        if st.button("Login"):
-            success, msg = login(email, password)
-            if success:
-                st.success(msg)
-                st.session_state.logged_in = True
-                st.session_state.email = email
-                st.rerun()
-            else:
-                st.error(msg)
-    else:
-        name = st.text_input("Full Name")
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        confirm_password = st.text_input("Confirm Password", type="password")
-        age = st.number_input("Age", min_value=1, max_value=100)
-        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-        if st.button("Sign Up"):
-            if password != confirm_password:
-                st.error("Passwords do not match.")
-            else:
-                success, msg = signup(name, email, password, age, gender)
-                if success:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-
-# ------------------ USAGE FETCH ------------------ #
-def get_user_usage(email):
-    sheet = get_user_sheet()
-    users = sheet.get_all_records()
-    for user in users:
-        if user['email'].strip().lower() == email.strip().lower():
-            used = int(user['usage'])
-            maxed = user['max_usage']
-            if str(maxed).lower() == "unlimited":
-                return used, "unlimited", "unlimited"
-            remaining = max(0, int(maxed) - used)
-            return used, int(maxed), remaining
-    return 0, 3, 3
+# ... [IMPORTS remain unchanged]
 
 # ------------------ MAIN APP ------------------ #
 if not st.session_state.logged_in:
@@ -89,39 +22,6 @@ else:
     st.markdown(f"**🚻 Gender:** `{user['gender']}`")
     st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
     st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
-
-    # Portfolio Section
-    st.subheader("💼 Your Portfolio")
-    portfolio = st.session_state.portfolio
-
-    if portfolio:
-        for stock in portfolio:
-            try:
-                data = yf.Ticker(stock).history(period="5d")
-                if not data.empty:
-                    st.markdown(f"**📊 {stock} (Last 5 Days)**")
-                    st.line_chart(data["Close"], use_container_width=True)
-                else:
-                    st.warning(f"⚠️ No data for {stock}")
-            except Exception as e:
-                st.warning(f"⚠️ Error loading data for {stock}: {e}")
-    else:
-        st.info("Your portfolio is empty.")
-
-    with st.form("portfolio_form"):
-        new_stock = st.text_input("➕ Add a Stock to Portfolio (e.g., AAPL, TSLA)")
-        add_submit = st.form_submit_button("Add to Portfolio")
-
-        if add_submit:
-            symbol = new_stock.strip().upper()
-            if symbol:
-                if symbol in portfolio:
-                    st.warning(f"⚠️ `{symbol}` is already in your portfolio.")
-                elif len(portfolio) >= 5:
-                    st.error("🚫 You can only add up to 5 stocks in your portfolio.")
-                else:
-                    st.session_state.portfolio.append(symbol)
-                    st.success(f"✅ Added `{symbol}` to portfolio.")
 
     # 🔍 Stock Analyzer
     st.subheader("🔍 Stock Analyzer")
@@ -183,3 +83,36 @@ else:
                 increment_usage(st.session_state.email)
                 if str(maxed).lower() != "unlimited":
                     st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
+
+    # ------------------ 💼 Portfolio Section (Now at bottom) ------------------ #
+    st.subheader("📁 My Portfolio")
+    portfolio = st.session_state.portfolio
+
+    if portfolio:
+        for stock in portfolio:
+            try:
+                data = yf.Ticker(stock).history(period="5d")
+                if not data.empty:
+                    st.markdown(f"**📊 {stock} (Last 5 Days)**")
+                    st.line_chart(data["Close"], use_container_width=True)
+                else:
+                    st.warning(f"⚠️ No data for {stock}")
+            except Exception as e:
+                st.warning(f"⚠️ Error loading data for {stock}: {e}")
+    else:
+        st.info("Your portfolio is empty.")
+
+    with st.form("portfolio_form"):
+        new_stock = st.text_input("➕ Add a Stock to Portfolio (e.g., AAPL, TSLA)")
+        add_submit = st.form_submit_button("Add to Portfolio")
+
+        if add_submit:
+            symbol = new_stock.strip().upper()
+            if symbol:
+                if symbol in portfolio:
+                    st.warning(f"⚠️ `{symbol}` is already in your portfolio.")
+                elif len(portfolio) >= 5:
+                    st.error("🚫 You can only add up to 5 stocks in your portfolio.")
+                else:
+                    st.session_state.portfolio.append(symbol)
+                    st.success(f"✅ Added `{symbol}` to portfolio.")
