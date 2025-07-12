@@ -151,7 +151,7 @@ else:
                 if str(maxed).lower() != "unlimited":
                     st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
 
-    # ------------------ 📁 My Portfolio Section (BOTTOM) ------------------ #
+    # ------------------ Portfolio Section ------------------ #
     st.subheader("📁 My Portfolio")
     portfolio = st.session_state.portfolio
 
@@ -176,10 +176,11 @@ else:
         if add_submit:
             symbol = new_stock.strip().upper()
             if symbol:
-                if symbol in portfolio:
+                if symbol in st.session_state.portfolio:
                     st.warning(f"⚠️ `{symbol}` is already in your portfolio.")
-                elif len(portfolio) >= 5:
+                elif len(st.session_state.portfolio) >= 5:
                     st.error("🚫 You can only add up to 5 stocks in your portfolio.")
                 else:
-                    st.session_state.portfolio.append(symbol)
+                    st.session_state.portfolio = st.session_state.portfolio + [symbol]
                     st.success(f"✅ Added `{symbol}` to portfolio.")
+                    st.experimental_rerun()
