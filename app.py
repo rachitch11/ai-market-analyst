@@ -3,10 +3,14 @@ import yfinance as yf
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import pandas as pd
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
-from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info
+from utils.auth import (
+    login, signup, increment_usage, get_user_sheet, get_user_info,
+    load_user_portfolio, save_user_portfolio
+)
 
 # Load API key
 load_dotenv()
@@ -14,6 +18,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 st.set_page_config(page_title="AI Market Analyst", layout="centered")
 
+# Session state
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'portfolio' not in st.session_state:
@@ -33,6 +38,7 @@ def login_signup_ui():
                 st.success(msg)
                 st.session_state.logged_in = True
                 st.session_state.email = email
+                st.session_state.portfolio = load_user_portfolio(email)
                 st.rerun()
             else:
                 st.error(msg)
@@ -79,6 +85,7 @@ else:
     st.sidebar.markdown(f"📊 Usage: {used} / {maxed}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
+        st.session_state.portfolio = []
         st.rerun()
 
     # Dashboard Header
@@ -129,58 +136,62 @@ else:
 
             data = yf.download(ticker, start=start_date, end=today)
             if data.empty:
-                st.warning("⚠️ No stock data found. Try a valid symbol like AAPL, TSLA.")
+                st.warning("⚠️ No stock data found.")
             else:
                 headlines = fetch_top_news(ticker)
-                headlines_text = "\n".join(headlines)
+                summary = summarize_with_gpt(ticker, data, "\n".join(headlines), OPENAI_API_KEY)
                 st.subheader(f"📉 {ticker.upper()} Price Trend")
-                st.line_chart(data["Close"], use_container_width=True)
-
-                st.subheader("📰 Recent News Headlines")
-                if headlines:
-                    for h in headlines:
-                        st.markdown(f"- {h.strip()}")
-                else:
-                    st.write("No recent news found.")
-
-                summary = summarize_with_gpt(ticker, data, headlines_text, OPENAI_API_KEY)
+                st.line_chart(data["Close"])
+                st.subheader("📰 News")
+                for h in headlines:
+                    st.markdown(f"- {h}")
                 st.subheader("📊 Market Insight")
                 st.write(summary)
-
                 increment_usage(st.session_state.email)
                 if str(maxed).lower() != "unlimited":
                     st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
 
-    # ------------------ Portfolio Section ------------------ #
-    st.subheader("📁 My Portfolio")
+    # ---------------- MY PORTFOLIO SECTION ---------------- #
+    st.markdown("---")
+    st.header("📁 My Portfolio")
     portfolio = st.session_state.portfolio
 
     if portfolio:
         for stock in portfolio:
+            st.markdown(f"### {stock}")
             try:
-                data = yf.Ticker(stock).history(period="5d")
-                if not data.empty:
-                    st.markdown(f"**📊 {stock} (Last 5 Days)**")
-                    st.line_chart(data["Close"], use_container_width=True)
+                hist = yf.Ticker(stock).history(period="3mo")
+                if not hist.empty:
+                    st.line_chart(hist["Close"], use_container_width=True)
+                    if st.button(f"❌ Remove {stock}", key=f"remove_{stock}"):
+                        portfolio.remove(stock)
+                        st.session_state.portfolio = portfolio
+                        save_user_portfolio(st.session_state.email, portfolio)
+                        st.rerun()
                 else:
-                    st.warning(f"⚠️ No data for {stock}")
+                    st.warning("No data found.")
             except Exception as e:
-                st.warning(f"⚠️ Error loading data for {stock}: {e}")
+                st.error(f"Error loading {stock}: {e}")
     else:
-        st.info("Your portfolio is empty.")
+        st.info("No stocks in your portfolio.")
 
     with st.form("portfolio_form"):
-        new_stock = st.text_input("➕ Add a Stock to Portfolio (e.g., AAPL, TSLA)")
+        new_stock = st.text_input("➕ Add Stock to Portfolio")
         add_submit = st.form_submit_button("Add to Portfolio")
-
         if add_submit:
             symbol = new_stock.strip().upper()
-            if symbol:
-                if symbol in st.session_state.portfolio:
-                    st.warning(f"⚠️ `{symbol}` is already in your portfolio.")
-                elif len(st.session_state.portfolio) >= 5:
-                    st.error("🚫 You can only add up to 5 stocks in your portfolio.")
-                else:
-                    st.session_state.portfolio = st.session_state.portfolio + [symbol]
-                    st.success(f"✅ Added `{symbol}` to portfolio.")
-                    st.experimental_rerun()
+            if symbol in portfolio:
+                st.warning("Already in portfolio.")
+            elif len(portfolio) >= 5:
+                st.error("Limit: 5 stocks only.")
+            else:
+                portfolio.append(symbol)
+                st.session_state.portfolio = portfolio
+                save_user_portfolio(st.session_state.email, portfolio)
+                st.success(f"Added {symbol}")
+                st.rerun()
+
+    if portfolio:
+        df = pd.DataFrame({"Stock": portfolio})
+        st.download_button("📥 Export Portfolio (CSV)", df.to_csv(index=False), "portfolio.csv", "text/csv")
+        st.download_button("📥 Export Portfolio (Excel)", df.to_excel(index=False), "portfolio.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
