@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pandas as pd
-from io import BytesIO  # ✅ Required for Excel export
+from io import BytesIO  # Required for Excel export
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
@@ -40,7 +40,7 @@ def login_signup_ui():
                 st.session_state.logged_in = True
                 st.session_state.email = email
                 st.session_state.portfolio = load_user_portfolio(email)
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error(msg)
     else:
@@ -80,6 +80,7 @@ if not st.session_state.logged_in:
 else:
     used, maxed, remaining = get_user_usage(st.session_state.email)
     user = get_user_info(st.session_state.email)
+    portfolio = st.session_state.portfolio  # ✅ Ensure synced
 
     # Sidebar
     st.sidebar.success(f"Logged in as {st.session_state.email}")
@@ -87,7 +88,7 @@ else:
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.portfolio = []
-        st.rerun()
+        st.experimental_rerun()
 
     # Dashboard Header
     st.title("📈 AI Market Analyst")
@@ -149,16 +150,17 @@ else:
                 st.subheader("📊 Market Insight")
                 st.write(summary)
 
-                # ✅ Add to Portfolio Shortcut Button
-                if ticker.upper() not in st.session_state.portfolio:
+                # ✅ Add to Portfolio Button
+                if ticker.upper() not in portfolio:
                     if st.button(f"➕ Add {ticker.upper()} to My Portfolio"):
-                        if len(st.session_state.portfolio) >= 5:
+                        if len(portfolio) >= 5:
                             st.error("Limit: 5 stocks only.")
                         else:
-                            st.session_state.portfolio.append(ticker.upper())
-                            save_user_portfolio(st.session_state.email, st.session_state.portfolio)
+                            portfolio.append(ticker.upper())
+                            st.session_state.portfolio = portfolio
+                            save_user_portfolio(st.session_state.email, portfolio)
                             st.success(f"{ticker.upper()} added to your portfolio.")
-                            st.rerun()
+                            st.experimental_rerun()
                 else:
                     st.info(f"{ticker.upper()} is already in your portfolio.")
 
@@ -169,7 +171,6 @@ else:
     # ---------------- MY PORTFOLIO SECTION ---------------- #
     st.markdown("---")
     st.header("📁 My Portfolio")
-    portfolio = st.session_state.portfolio
 
     if portfolio:
         for stock in portfolio:
@@ -182,7 +183,7 @@ else:
                         portfolio.remove(stock)
                         st.session_state.portfolio = portfolio
                         save_user_portfolio(st.session_state.email, portfolio)
-                        st.rerun()
+                        st.experimental_rerun()
                 else:
                     st.warning("No data found.")
             except Exception as e:
@@ -204,7 +205,7 @@ else:
                 st.session_state.portfolio = portfolio
                 save_user_portfolio(st.session_state.email, portfolio)
                 st.success(f"Added {symbol}")
-                st.rerun()
+                st.experimental_rerun()
 
     # ✅ Export Portfolio
     if portfolio:
