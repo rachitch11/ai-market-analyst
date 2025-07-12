@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pandas as pd
+from io import BytesIO  # ✅ Add this for Excel export fix
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
@@ -191,7 +192,26 @@ else:
                 st.success(f"Added {symbol}")
                 st.rerun()
 
+    # ✅ CSV and Excel Export (Fixed)
     if portfolio:
         df = pd.DataFrame({"Stock": portfolio})
-        st.download_button("📥 Export Portfolio (CSV)", df.to_csv(index=False), "portfolio.csv", "text/csv")
-        st.download_button("📥 Export Portfolio (Excel)", df.to_excel(index=False), "portfolio.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        # CSV download
+        st.download_button(
+            label="📥 Export Portfolio (CSV)",
+            data=df.to_csv(index=False),
+            file_name="portfolio.csv",
+            mime="text/csv"
+        )
+
+        # Excel download using BytesIO
+        excel_buffer = BytesIO()
+        df.to_excel(excel_buffer, index=False, engine='xlsxwriter')
+        excel_buffer.seek(0)
+
+        st.download_button(
+            label="📥 Export Portfolio (Excel)",
+            data=excel_buffer,
+            file_name="portfolio.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
