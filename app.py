@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pandas as pd
-from io import BytesIO  # ✅ Add this for Excel export fix
+from io import BytesIO  # ✅ Required for Excel export
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
@@ -148,6 +148,20 @@ else:
                     st.markdown(f"- {h}")
                 st.subheader("📊 Market Insight")
                 st.write(summary)
+
+                # ✅ Add to Portfolio Shortcut Button
+                if ticker.upper() not in st.session_state.portfolio:
+                    if st.button(f"➕ Add {ticker.upper()} to My Portfolio"):
+                        if len(st.session_state.portfolio) >= 5:
+                            st.error("Limit: 5 stocks only.")
+                        else:
+                            st.session_state.portfolio.append(ticker.upper())
+                            save_user_portfolio(st.session_state.email, st.session_state.portfolio)
+                            st.success(f"{ticker.upper()} added to your portfolio.")
+                            st.rerun()
+                else:
+                    st.info(f"{ticker.upper()} is already in your portfolio.")
+
                 increment_usage(st.session_state.email)
                 if str(maxed).lower() != "unlimited":
                     st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
@@ -192,11 +206,11 @@ else:
                 st.success(f"Added {symbol}")
                 st.rerun()
 
-    # ✅ CSV and Excel Export (Fixed)
+    # ✅ Export Portfolio
     if portfolio:
         df = pd.DataFrame({"Stock": portfolio})
 
-        # CSV download
+        # Export as CSV
         st.download_button(
             label="📥 Export Portfolio (CSV)",
             data=df.to_csv(index=False),
@@ -204,7 +218,7 @@ else:
             mime="text/csv"
         )
 
-        # Excel download using BytesIO
+        # Export as Excel
         excel_buffer = BytesIO()
         df.to_excel(excel_buffer, index=False, engine='xlsxwriter')
         excel_buffer.seek(0)
