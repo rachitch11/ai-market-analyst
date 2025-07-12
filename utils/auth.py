@@ -10,6 +10,7 @@ def get_gsheet_client():
     )
     return gspread.authorize(creds)
 
+# ========== USER SHEET FUNCTIONS ==========
 def get_user_sheet():
     client = get_gsheet_client()
     return client.open("user_auth_db").worksheet("users")
@@ -24,6 +25,10 @@ def signup(name, email, password, age, gender):
 
     # Add user: name, email, password, age, gender, usage, max_usage
     sheet.append_row([name, email.strip().lower(), str(password).strip(), age, gender, 0, 3])
+    
+    # Also initialize empty portfolio in portfolio sheet
+    get_portfolio_sheet().append_row([email.strip().lower(), ""])
+
     return True, "Signup successful. Please login."
 
 def login(email, password):
@@ -78,3 +83,25 @@ def get_user_info(email):
                 "gender": user["gender"]
             }
     return {}
+
+# ========== PORTFOLIO SHEET FUNCTIONS ==========
+def get_portfolio_sheet():
+    client = get_gsheet_client()
+    return client.open("user_auth_db").worksheet("portfolio")  # Ensure sheet named 'portfolio'
+
+def load_user_portfolio(email):
+    sheet = get_portfolio_sheet()
+    records = sheet.get_all_records()
+    for record in records:
+        if record["email"].strip().lower() == email.strip().lower():
+            portfolio_raw = record.get("portfolio", "")
+            return portfolio_raw.split(",") if portfolio_raw else []
+    return []
+
+def save_user_portfolio(email, portfolio):
+    sheet = get_portfolio_sheet()
+    records = sheet.get_all_records()
+    for i, record in enumerate(records):
+        if record["email"].strip().lower() == email.strip().lower():
+            sheet.update_cell(i + 2, 2, ",".join(portfolio))  # Column B = portfolio
+            return
