@@ -8,14 +8,12 @@ from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
 from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info
 
-# Load API keys
+# Load API key
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Set page config
 st.set_page_config(page_title="AI Market Analyst", layout="centered")
 
-# Session state init
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -60,9 +58,11 @@ def get_user_usage(email):
     for user in users:
         if user['email'].strip().lower() == email.strip().lower():
             used = int(user['usage'])
-            maxed = int(user['max_usage'])
-            remaining = max(0, maxed - used)
-            return used, maxed, remaining
+            maxed = user['max_usage']
+            if str(maxed).lower() == "unlimited":
+                return used, "unlimited", "unlimited"
+            remaining = max(0, int(maxed) - used)
+            return used, int(maxed), remaining
     return 0, 3, 3
 
 # ------------------ MAIN APP ------------------ #
@@ -88,7 +88,7 @@ else:
     st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
     st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
 
-    # 🔄 Layout using columns for side-by-side inputs
+    # 🔄 Layout for search
     col1, col2 = st.columns([2, 2])
     with col1:
         search_company = st.text_input("🔍 Search Company Name (e.g., Apple)", key="company_search")
@@ -100,32 +100,31 @@ else:
             else:
                 st.error("❌ Symbol not found")
 
-    # 📥 Main Form
+    # 📥 Form
     default_ticker = "AAPL"
     with st.form("ticker_form"):
         ticker = st.text_input("Enter Stock Symbol:", value=default_ticker)
-        date_range = st.selectbox("Select Date Range:", ["Last 7 Days", "Last 1 Month", "Last 3 Months", "Last 6 Months", "Last 1 Year", "Last 5 Years"])
+        date_range = st.selectbox("Select Date Range:", [
+            "Last 7 Days", "Last 1 Month", "Last 3 Months",
+            "Last 6 Months", "Last 1 Year", "Last 5 Years"
+        ])
         submitted = st.form_submit_button("🔍 Analyze")
 
     if submitted:
-        if used >= maxed:
+        if str(maxed).lower() != "unlimited" and used >= maxed:
             st.error("🚫 Usage limit reached. Please email rachit.jb77@gmail.com for full access.")
         elif ticker.strip() == "":
             st.warning("⚠️ Please enter a valid stock symbol.")
         else:
             today = datetime.today()
-            if date_range == "Last 7 Days":
-                start_date = today - timedelta(days=7)
-            elif date_range == "Last 1 Month":
-                start_date = today - timedelta(days=30)
-            elif date_range == "Last 3 Months":
-                start_date = today - timedelta(days=90)
-            elif date_range == "Last 6 Months":
-                start_date = today - timedelta(days=180)
-            elif date_range == "Last 1 Year":
-                start_date = today - timedelta(days=365)
-            elif date_range == "Last 5 Years":
-                start_date = today - timedelta(days=1825)
+            start_date = {
+                "Last 7 Days": today - timedelta(days=7),
+                "Last 1 Month": today - timedelta(days=30),
+                "Last 3 Months": today - timedelta(days=90),
+                "Last 6 Months": today - timedelta(days=180),
+                "Last 1 Year": today - timedelta(days=365),
+                "Last 5 Years": today - timedelta(days=1825),
+            }[date_range]
 
             data = yf.download(ticker, start=start_date, end=today)
             if data.empty:
@@ -148,4 +147,5 @@ else:
                 st.write(summary)
 
                 increment_usage(st.session_state.email)
-                st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
+                if str(maxed).lower() != "unlimited":
+                    st.info(f"✅ 1 usage consumed. You have {remaining - 1} left.")
