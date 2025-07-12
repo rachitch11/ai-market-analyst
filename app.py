@@ -58,7 +58,7 @@ def get_user_usage(email):
     sheet = get_user_sheet()
     users = sheet.get_all_records()
     for user in users:
-        if user['email'] == email:
+        if user['email'].strip().lower() == email.strip().lower():
             used = int(user['usage'])
             maxed = int(user['max_usage'])
             remaining = max(0, maxed - used)
