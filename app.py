@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from utils.summarizer import summarize_with_gpt
 from utils.news import fetch_top_news, get_symbol_from_name
-from utils.auth import login, signup, increment_usage, get_user_sheet  # ✅ Updated
+from utils.auth import login, signup, increment_usage, get_user_sheet, get_user_info  # ✅ Updated
 
 # Load API keys
 load_dotenv()
@@ -24,10 +24,9 @@ def login_signup_ui():
     st.title("🔐 Login / Sign Up to Access AI Market Analyst")
     menu = st.radio("Select", ["Login", "Sign Up"])
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
     if menu == "Login":
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
         if st.button("Login"):
             success, msg = login(email, password)
             if success:
@@ -38,12 +37,21 @@ def login_signup_ui():
             else:
                 st.error(msg)
     else:
+        name = st.text_input("Full Name")
+        age = st.text_input("Age")
+        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        confirm = st.text_input("Confirm Password", type="password")
         if st.button("Sign Up"):
-            success, msg = signup(email, password)
-            if success:
-                st.success(msg)
+            if password != confirm:
+                st.error("❌ Passwords do not match.")
             else:
-                st.error(msg)
+                success, msg = signup(name, email, password, age, gender)
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
 
 # ------------------ USAGE FETCH ------------------ #
 def get_user_usage(email):
@@ -62,6 +70,7 @@ if not st.session_state.logged_in:
     login_signup_ui()
 else:
     used, maxed, remaining = get_user_usage(st.session_state.email)
+    user_info = get_user_info(st.session_state.email)
 
     # Sidebar
     st.sidebar.success(f"Logged in as {st.session_state.email}")
@@ -72,7 +81,9 @@ else:
 
     # Dashboard Header
     st.title("📈 AI Market Analyst")
-    st.markdown(f"**👤 User:** `{st.session_state.email}`")
+    st.markdown(f"**👤 User:** `{user_info['name']}`")
+    st.markdown(f"**📧 Email:** `{st.session_state.email}`")
+    st.markdown(f"**🧑 Age/Gender:** `{user_info['age']} / {user_info['gender']}`")
     st.markdown(f"**✅ Remaining Uses:** `{remaining}` of {maxed}")
     st.info("Want full access? 📬 Email us at [rachit.jb77@gmail.com](mailto:rachit.jb77@gmail.com)")
 
